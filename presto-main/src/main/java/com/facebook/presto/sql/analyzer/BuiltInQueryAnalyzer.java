@@ -15,6 +15,7 @@ package com.facebook.presto.sql.analyzer;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.common.analyzer.PreparedQuery;
+import com.facebook.presto.common.resourceGroups.QueryType;
 import com.facebook.presto.metadata.Metadata;
 import com.facebook.presto.spi.VariableAllocator;
 import com.facebook.presto.spi.analyzer.AnalyzerContext;
@@ -78,6 +79,9 @@ public class BuiltInQueryAnalyzer
 
         BuiltInQueryPreparer.BuiltInPreparedQuery builtInPreparedQuery = (BuiltInQueryPreparer.BuiltInPreparedQuery) preparedQuery;
         Session session = ((BuiltInAnalyzerContext) analyzerContext).getSession();
+
+        Optional<QueryType> queryType = preparedQuery.getQueryType();
+        session.getAccessControlContext().setQueryType(queryType);
 
         Analyzer analyzer = new Analyzer(
                 session,
