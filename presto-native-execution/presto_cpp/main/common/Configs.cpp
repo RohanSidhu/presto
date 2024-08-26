@@ -185,9 +185,13 @@ SystemConfig::SystemConfig() {
           BOOL_PROP(kEnableSerializedPageChecksum, true),
           BOOL_PROP(kUseMmapAllocator, true),
           STR_PROP(kMemoryArbitratorKind, ""),
-          BOOL_PROP(kMemoryArbitratorGlobalArbitrationEnabled, false),
           NUM_PROP(kQueryMemoryGb, 38),
-          NUM_PROP(kQueryReservedMemoryGb, 4),
+          STR_PROP(kSharedArbitratorReservedCapacity, "4GB"),
+          STR_PROP(kSharedArbitratorMemoryPoolInitialCapacity, "128MB"),
+          STR_PROP(kSharedArbitratorMemoryPoolReservedCapacity, "64MB"),
+          STR_PROP(kSharedArbitratorMemoryPoolTransferCapacity, "32MB"),
+          STR_PROP(kSharedArbitratorMemoryReclaimMaxWaitTime, "5m"),
+          STR_PROP(kSharedArbitratorGlobalArbitrationEnabled, "false"),
           NUM_PROP(kLargestSizeClassPages, 256),
           BOOL_PROP(kEnableVeloxTaskLogging, false),
           BOOL_PROP(kEnableVeloxExprSetLogging, false),
@@ -228,6 +232,7 @@ SystemConfig::SystemConfig() {
           STR_PROP(kCacheVeloxTtlThreshold, "2d"),
           STR_PROP(kCacheVeloxTtlCheckInterval, "1h"),
           BOOL_PROP(kEnableRuntimeMetricsCollection, false),
+          BOOL_PROP(kPlanValidatorFailOnNestedLoopJoin, false),
       };
 }
 
@@ -502,41 +507,87 @@ std::string SystemConfig::memoryArbitratorKind() const {
   return optionalProperty<std::string>(kMemoryArbitratorKind).value_or("");
 }
 
-bool SystemConfig::memoryArbitratorGlobalArbitrationEnabled() const {
-  return optionalProperty<bool>(kMemoryArbitratorGlobalArbitrationEnabled)
-      .value_or(false);
-}
-
 int32_t SystemConfig::queryMemoryGb() const {
   return optionalProperty<int32_t>(kQueryMemoryGb).value();
 }
 
-int32_t SystemConfig::queryReservedMemoryGb() const {
-  return optionalProperty<int32_t>(kQueryReservedMemoryGb).value();
+std::string SystemConfig::sharedArbitratorGlobalArbitrationEnabled() const {
+  return optionalProperty<std::string>(
+             kSharedArbitratorGlobalArbitrationEnabled)
+      .value_or("false");
 }
 
-uint64_t SystemConfig::memoryPoolInitCapacity() const {
-  static constexpr uint64_t kMemoryPoolInitCapacityDefault = 128 << 20;
-  return optionalProperty<uint64_t>(kMemoryPoolInitCapacity)
-      .value_or(kMemoryPoolInitCapacityDefault);
+std::string SystemConfig::sharedArbitratorReservedCapacity() const {
+  return optionalProperty<std::string>(kSharedArbitratorReservedCapacity)
+      .value();
 }
 
-uint64_t SystemConfig::memoryPoolReservedCapacity() const {
-  static constexpr uint64_t kMemoryPoolReservedCapacityDefault = 64 << 20;
-  return optionalProperty<uint64_t>(kMemoryPoolReservedCapacity)
-      .value_or(kMemoryPoolReservedCapacityDefault);
+std::string SystemConfig::sharedArbitratorMemoryPoolInitialCapacity() const {
+  static constexpr std::string_view
+      kSharedArbitratorMemoryPoolInitialCapacityDefault = "128MB";
+  return optionalProperty<std::string>(
+             kSharedArbitratorMemoryPoolInitialCapacity)
+      .value_or(std::string(kSharedArbitratorMemoryPoolInitialCapacityDefault));
 }
 
-uint64_t SystemConfig::memoryPoolTransferCapacity() const {
-  static constexpr uint64_t kMemoryPoolTransferCapacityDefault = 32 << 20;
-  return optionalProperty<uint64_t>(kMemoryPoolTransferCapacity)
-      .value_or(kMemoryPoolTransferCapacityDefault);
+std::string SystemConfig::sharedArbitratorMemoryPoolReservedCapacity() const {
+  static constexpr std::string_view
+      kSharedArbitratorMemoryPoolReservedCapacityDefault = "64MB";
+  return optionalProperty<std::string>(
+             kSharedArbitratorMemoryPoolReservedCapacity)
+      .value_or(
+          std::string(kSharedArbitratorMemoryPoolReservedCapacityDefault));
 }
 
-uint64_t SystemConfig::memoryReclaimWaitMs() const {
-  static constexpr uint64_t kMemoryReclaimWaitMsDefault = {300'000}; // 5 mins.
-  return optionalProperty<uint64_t>(kMemoryReclaimWaitMs)
-      .value_or(kMemoryReclaimWaitMsDefault);
+std::string SystemConfig::sharedArbitratorMemoryPoolTransferCapacity() const {
+  static constexpr std::string_view
+      kSharedArbitratorMemoryPoolTransferCapacityDefault = "32MB";
+  return optionalProperty<std::string>(
+             kSharedArbitratorMemoryPoolTransferCapacity)
+      .value_or(
+          std::string(kSharedArbitratorMemoryPoolTransferCapacityDefault));
+}
+
+std::string SystemConfig::sharedArbitratorMemoryReclaimWaitTime() const {
+  static constexpr std::string_view
+      kSharedArbitratorMemoryReclaimMaxWaitTimeDefault = "5m";
+  return optionalProperty<std::string>(
+             kSharedArbitratorMemoryReclaimMaxWaitTime)
+      .value_or(std::string(kSharedArbitratorMemoryReclaimMaxWaitTimeDefault));
+}
+
+std::string SystemConfig::sharedArbitratorFastExponentialGrowthCapacityLimit()
+    const {
+  static constexpr std::string_view
+      kSharedArbitratorFastExponentialGrowthCapacityLimitDefault = "512MB";
+  return optionalProperty<std::string>(
+             kSharedArbitratorFastExponentialGrowthCapacityLimit)
+      .value_or(std::string(
+          kSharedArbitratorFastExponentialGrowthCapacityLimitDefault));
+}
+
+std::string SystemConfig::sharedArbitratorSlowCapacityGrowPct() const {
+  static constexpr std::string_view
+      kSharedArbitratorSlowCapacityGrowPctDefault = "0.25";
+  return optionalProperty<std::string>(kSharedArbitratorSlowCapacityGrowPct)
+      .value_or(std::string(kSharedArbitratorSlowCapacityGrowPctDefault));
+}
+
+std::string SystemConfig::sharedArbitratorMemoryPoolMinFreeCapacity() const {
+  static constexpr std::string_view
+      kSharedArbitratorMemoryPoolMinFreeCapacityDefault = "128MB";
+  return optionalProperty<std::string>(
+             kSharedArbitratorMemoryPoolMinFreeCapacity)
+      .value_or(std::string(kSharedArbitratorMemoryPoolMinFreeCapacityDefault));
+}
+
+std::string SystemConfig::sharedArbitratorMemoryPoolMinFreeCapacityPct() const {
+  static constexpr std::string_view
+      kSharedArbitratorMemoryPoolMinFreeCapacityPctDefault = "0.25";
+  return optionalProperty<std::string>(
+             kSharedArbitratorMemoryPoolMinFreeCapacityPct)
+      .value_or(
+          std::string(kSharedArbitratorMemoryPoolMinFreeCapacityPctDefault));
 }
 
 bool SystemConfig::enableSystemMemoryPoolUsageTracking() const {

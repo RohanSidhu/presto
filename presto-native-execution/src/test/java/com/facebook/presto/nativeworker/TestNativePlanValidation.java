@@ -11,12 +11,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.facebook.presto.nativeworker;
+import com.facebook.presto.testing.QueryRunner;
 
-#include "presto_cpp/main/types/PrestoToVeloxPlanValidator.h"
-
-namespace facebook::presto {
-bool PrestoToVeloxPlanValidator::validatePlanFragment(
-    const velox::core::PlanFragment& fragment) {
-  return true;
+public class TestNativePlanValidation
+        extends AbstractTestNativePlanValidation
+{
+    protected QueryRunner createQueryRunner() throws Exception
+    {
+        return PrestoNativeQueryRunnerUtils.createNativeQueryRunner(false, true);
+    }
 }
-} // namespace facebook::presto

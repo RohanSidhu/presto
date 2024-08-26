@@ -11,13 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include "velox/core/PlanFragment.h"
+package com.facebook.presto.spi.analyzer;
 
-namespace facebook::presto {
-class PrestoToVeloxPlanValidator {
- public:
-  virtual bool validatePlanFragment(const velox::core::PlanFragment& fragment);
-  virtual ~PrestoToVeloxPlanValidator() = default;
-};
-} // namespace facebook::presto
+public interface QueryPreparerProvider
+{
+    String getType();
+
+    QueryPreparer getQueryPreparer();
+}
