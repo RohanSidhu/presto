@@ -15,6 +15,7 @@ package com.facebook.presto;
 
 import com.facebook.presto.common.RuntimeStats;
 import com.facebook.presto.common.function.SqlFunctionProperties;
+import com.facebook.presto.common.resourceGroups.QueryType;
 import com.facebook.presto.common.transaction.TransactionId;
 import com.facebook.presto.common.type.TimeZoneKey;
 import com.facebook.presto.cost.PlanCostEstimate;
@@ -99,6 +100,7 @@ public final class Session
     private final Optional<Tracer> tracer;
     private final WarningCollector warningCollector;
     private final RuntimeStats runtimeStats;
+    private final Optional<QueryType> queryType;
 
     private final OptimizerInformationCollector optimizerInformationCollector = new OptimizerInformationCollector();
     private final OptimizerResultCollector optimizerResultCollector = new OptimizerResultCollector();
@@ -131,7 +133,8 @@ public final class Session
             Map<SqlFunctionId, SqlInvokedFunction> sessionFunctions,
             Optional<Tracer> tracer,
             WarningCollector warningCollector,
-            RuntimeStats runtimeStats)
+            RuntimeStats runtimeStats,
+            Optional<QueryType> queryType)
     {
         this.queryId = requireNonNull(queryId, "queryId is null");
         this.transactionId = requireNonNull(transactionId, "transactionId is null");
@@ -172,7 +175,8 @@ public final class Session
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.warningCollector = requireNonNull(warningCollector, "warningCollector is null");
         this.runtimeStats = requireNonNull(runtimeStats, "runtimeStats is null");
-        this.context = new AccessControlContext(queryId, clientInfo, clientTags, source, warningCollector, runtimeStats);
+        this.queryType = queryType;
+        this.context = new AccessControlContext(queryId, clientInfo, clientTags, source, warningCollector, runtimeStats, queryType);
     }
 
     public QueryId getQueryId()
@@ -353,6 +357,11 @@ public final class Session
         return planNodeCostMap;
     }
 
+    public Optional<QueryType> getQueryType()
+    {
+        return queryType;
+    }
+
     public Session beginTransactionId(TransactionId transactionId, TransactionManager transactionManager, AccessControl accessControl)
     {
         requireNonNull(transactionId, "transactionId is null");
@@ -447,7 +456,8 @@ public final class Session
                 sessionFunctions,
                 tracer,
                 warningCollector,
-                runtimeStats);
+                runtimeStats,
+                queryType);
     }
 
     public Session withDefaultProperties(
@@ -503,7 +513,8 @@ public final class Session
                 sessionFunctions,
                 tracer,
                 warningCollector,
-                runtimeStats);
+                runtimeStats,
+                queryType);
     }
 
     public ConnectorSession toConnectorSession()
@@ -632,6 +643,7 @@ public final class Session
         private final Map<SqlFunctionId, SqlInvokedFunction> sessionFunctions = new HashMap<>();
         private WarningCollector warningCollector = WarningCollector.NOOP;
         private RuntimeStats runtimeStats = new RuntimeStats();
+        private QueryType queryType;
 
         private SessionBuilder(SessionPropertyManager sessionPropertyManager)
         {
@@ -665,6 +677,7 @@ public final class Session
             this.tracer = requireNonNull(session.tracer, "tracer is null");
             this.warningCollector = requireNonNull(session.warningCollector, "warningCollector is null");
             this.runtimeStats = requireNonNull(session.runtimeStats, "runtimeStats is null");
+            this.queryType = session.queryType.orElse(null);
         }
 
         public SessionBuilder setQueryId(QueryId queryId)
@@ -821,6 +834,43 @@ public final class Session
             return this;
         }
 
+        public SessionBuilder setQueryType(QueryType queryType)
+        {
+            this.queryType = queryType;
+            return this;
+        }
+
+        public SessionBuilder withDefaultProperties(
+                SystemSessionPropertyConfiguration systemPropertyConfiguration,
+                Map<String, Map<String, String>> catalogPropertyDefaults)
+        {
+            requireNonNull(systemPropertyConfiguration, "systemPropertyConfiguration is null");
+            requireNonNull(catalogPropertyDefaults, "catalogPropertyDefaults is null");
+
+            // to remove this check properties must be authenticated and validated as in beginTransactionId
+            checkState(
+                    this.transactionId == null && this.connectorProperties.isEmpty(),
+                    "Session properties cannot be overridden once a transaction is active");
+
+            Map<String, String> systemProperties = new HashMap<>();
+            systemProperties.putAll(systemPropertyConfiguration.systemPropertyDefaults);
+            systemProperties.putAll(this.systemProperties);
+            systemProperties.putAll(systemPropertyConfiguration.systemPropertyOverrides);
+            this.systemProperties.putAll(systemProperties);
+
+            Map<String, Map<String, String>> connectorProperties = catalogPropertyDefaults.entrySet().stream()
+                    .map(entry -> Maps.immutableEntry(entry.getKey(), new HashMap<>(entry.getValue())))
+                    .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+            for (Entry<String, Map<String, String>> catalogProperties : this.catalogSessionProperties.entrySet()) {
+                String catalog = catalogProperties.getKey();
+                for (Entry<String, String> entry : catalogProperties.getValue().entrySet()) {
+                    setCatalogSessionProperty(catalog, entry.getKey(), entry.getValue());
+                }
+            }
+
+            return this;
+        }
+
         public <T> T getSystemProperty(String name, Class<T> type)
         {
             return sessionPropertyManager.decodeSystemPropertyValue(name, systemProperties.get(name), type);
@@ -853,7 +903,8 @@ public final class Session
                     sessionFunctions,
                     tracer,
                     warningCollector,
-                    runtimeStats);
+                    runtimeStats,
+                    Optional.ofNullable(queryType));
         }
     }
 
