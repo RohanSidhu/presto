@@ -826,6 +826,36 @@ Example::
 
     CALL iceberg.system.rollback_to_timestamp('schema_name', 'table_name', TIMESTAMP '1995-04-26 00:00:00.000');
 
+Set Current Snapshot
+^^^^^^^^^^^^^^^^^^^^
+
+This procedure sets a current snapshot ID for a table by using ``snapshot_id`` or ``ref``.
+Use either ``snapshot_id`` or ``ref``, but do not use both in the same procedure.
+
+The following arguments are available:
+
+===================== ========== =============== =======================================================================
+Argument Name         required   type            Description
+===================== ========== =============== =======================================================================
+``schema``            ✔️         string          Schema of the table to update
+
+``table_name``        ✔️         string          Name of the table to update
+
+``snapshot_id``                  long            Snapshot ID to set as current
+
+``ref``                          string          Snapshot Reference (branch or tag) to set as current
+===================== ========== =============== =======================================================================
+
+Examples:
+
+* Set current table snapshot ID for the given table to 10000 ::
+
+    CALL iceberg.system.set_current_snapshot('schema_name', 'table_name', 10000);
+
+* Set current table snapshot ID for the given table to snapshot ID of branch1 ::
+
+    CALL iceberg.system.set_current_snapshot(schema => 'schema_name', table_name => 'table_name', ref => 'branch1');
+
 Expire Snapshots
 ^^^^^^^^^^^^^^^^
 
@@ -886,6 +916,36 @@ Examples:
 * Remove any files which are not known to the table `db.sample` and created 3 days ago (by default)::
 
     CALL iceberg.system.remove_orphan_files(schema => 'db', table_name => 'sample');
+
+Fast Forward Branch
+^^^^^^^^^^^^^^^^^^^
+
+This procedure advances the current snapshot of the specified branch to a more recent snapshot from another branch without replaying any intermediate snapshots.
+``branch`` can be fast-forwarded up to the ``to`` snapshot if ``branch`` is an ancestor of ``to``.
+
+The following arguments are available:
+
+===================== ========== =============== =======================================================================
+Argument Name         required   type            Description
+===================== ========== =============== =======================================================================
+``schema``            ✔️         string          Schema of the table to update
+
+``table_name``        ✔️         string          Name of the table to update
+
+``branch``            ✔️         string          The branch you want to fast-forward
+
+``to``                ✔️         string          The branch you want to fast-forward to
+===================== ========== =============== =======================================================================
+
+Examples:
+
+* Fast-forward the ``dev`` branch to the latest snapshot of the ``main`` branch ::
+
+    CALL iceberg.system.fast_forward('schema_name', 'table_name', 'dev', 'main');
+
+* Given the branch named ``branch1`` does not exist yet, create a new branch named ``branch1``  and set it's current snapshot equal to the latest snapshot of the ``main`` branch ::
+
+    CALL iceberg.system.fast_forward('schema_name', 'table_name', 'branch1', 'main');
 
 SQL Support
 -----------
