@@ -175,7 +175,7 @@ public final class Session
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.warningCollector = requireNonNull(warningCollector, "warningCollector is null");
         this.runtimeStats = requireNonNull(runtimeStats, "runtimeStats is null");
-        this.queryType = queryType;
+        this.queryType = requireNonNull(queryType, "queryType is null");
         this.context = new AccessControlContext(queryId, clientInfo, clientTags, source, warningCollector, runtimeStats, queryType);
     }
 
@@ -586,7 +586,7 @@ public final class Session
         private final Map<SqlFunctionId, SqlInvokedFunction> sessionFunctions = new HashMap<>();
         private WarningCollector warningCollector = WarningCollector.NOOP;
         private RuntimeStats runtimeStats = new RuntimeStats();
-        private QueryType queryType;
+        private Optional<QueryType> queryType = Optional.empty();
 
         private SessionBuilder(SessionPropertyManager sessionPropertyManager)
         {
@@ -620,7 +620,7 @@ public final class Session
             this.tracer = requireNonNull(session.tracer, "tracer is null");
             this.warningCollector = requireNonNull(session.warningCollector, "warningCollector is null");
             this.runtimeStats = requireNonNull(session.runtimeStats, "runtimeStats is null");
-            this.queryType = session.queryType.orElse(null);
+            this.queryType = requireNonNull(session.queryType, "queryType is null");
         }
 
         public SessionBuilder setQueryId(QueryId queryId)
@@ -777,9 +777,9 @@ public final class Session
             return this;
         }
 
-        public SessionBuilder setQueryType(QueryType queryType)
+        public SessionBuilder setQueryType(Optional<QueryType> queryType)
         {
-            this.queryType = queryType;
+            this.queryType = requireNonNull(queryType, "queryType is null");
             return this;
         }
 
@@ -854,7 +854,7 @@ public final class Session
                     tracer,
                     warningCollector,
                     runtimeStats,
-                    Optional.ofNullable(queryType));
+                    queryType);
         }
     }
 

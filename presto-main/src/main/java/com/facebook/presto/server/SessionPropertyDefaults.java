@@ -115,7 +115,7 @@ public class SessionPropertyDefaults
     {
         SessionPropertyConfigurationManager configurationManager = delegate.get();
         SessionBuilder sessionBuilder = Session.builder(session);
-        sessionBuilder.setQueryType(queryType.orElse(null));
+        sessionBuilder.setQueryType(queryType);
 
         if (configurationManager == null) {
             return sessionBuilder.build();
